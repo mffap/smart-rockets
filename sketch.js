@@ -6,11 +6,7 @@ var target;
 var maxforce = 0.2;
 var vlim = 4;
 var mutationrate = 0.01;
-
-var rx = 100;
-var ry = 400;
-var rw = 200;
-var rh = 20;
+var obstacles = [];
 
 function setup() {
   createCanvas(400, 550);
@@ -19,6 +15,12 @@ function setup() {
   genP = createP();
   countP = createP();
 
+  // build some obstacles
+  for (var i = 0; i < 10; i++) {
+    var o = new Obstacle();
+    obstacles.push(o);
+  }
+  // setup target area
   target = createVector(width/2, 150);
 }
 
@@ -35,16 +37,23 @@ function draw() {
     count = 0;
     generation++;
   }
-
   fill(150);
-  rect(rx, ry,rw,rh);
-
+  for (var i = 0; i < 10; i++) {
+      ellipse(obstacles[i].pos.x, obstacles[i].pos.y,obstacles[i].r*2);
+  }
+  fill(255);
   ellipse(target.x, target.y, 16, 16);
 }
 
+function Obstacle() {
+  this.r = random(10, 33);
+  this.pos = createVector(random(0+this.r, width-this.r), random(0, height-50));
+}
+
+
 function Population() {
   this.rockets = [];
-  this.size = 25;
+  this.size = 100;
   this.matingpool = [];
 
   for (var i = 0; i < this.size; i++) {
@@ -167,19 +176,17 @@ function Rocket(dna) {
 
   this.calcFitness = function() {
 
-    //add time or steps
     var d = dist(this.pos.x, this.pos.y, target.x, target.y);
-
+    var f = 0
+    // use exponentials @todo
     if(this.completed) {
-      var f = map(this.steps, lifespan, 1, 1, 50);
-      //var f = (1/this.steps)*1000
-      // console.log(f);
-      this.fitness = f;
+      f = map(this.steps, lifespan, 1, 1, 100);
     } else if (this.crashed) {
-      this.fitness = (1/d) * 0.3;
+      f = (1/d) * 0.2;
     } else {
-      this.fitness = 1/d;
+      f = 1/d;
     }
+    this.fitness = f;
   }
 
   this.update = function() {
@@ -191,18 +198,16 @@ function Rocket(dna) {
       this.pos = target.copy(); // move to target
     }
 
-    //check if hit obstacle
-    if(this.pos.x > rx && this.pos.x <rx + rw && this.pos.y>ry && this.pos.y<ry+rh) {
+    // let rockets crash on edges
+    if(this.pos.x < 0 || this.pos.x > width || this.pos.y <0 || this.pos.y > height) {
       this.crashed = true;
     }
 
-    //check if out of reached (hit edges)
-    if(this.pos.x > width || this.pos.x<0) {
-      this.crashed = true;
+    for (i = 0; i < obstacles.length; i ++) {
+      this.collide(obstacles[i]);
     }
-    if(this.pos.y > height || this.pos.y<0) {
-      this.crashed = true;
-    }
+
+    //check if hit obstacle
 
     this.applyForce(this.dna.genes[count]); //apply force from genes vector for each period
     if(!this.completed && !this.crashed) {
@@ -225,6 +230,11 @@ function Rocket(dna) {
     rectMode(CENTER);
     rect(0,0, 25, 5);
     pop();
+  }
+
+  this.collide = function(obj) {
+    hit = collidePointCircle(this.pos.x,this.pos.y,obj.pos.x,obj.pos.y,obj.r*2);
+    if(hit) this.crashed = true;
   }
 
 }
